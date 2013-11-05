@@ -50,6 +50,11 @@ module Puppet
       passed to the installer command."
     feature :uninstall_options, "The provider accepts options to be
       passed to the uninstaller command."
+    feature :build_options, "The provider accepts build_options to be ensured
+      for the given package. The meaning and format of the options is defined
+      by provider.",
+      :methods => [:build_options_insync?, :build_options, :build_options=]
+
 
     ensurable do
       desc <<-EOT
@@ -233,8 +238,80 @@ module Puppet
       end
     end
 
+    newproperty(:build_options, :required_features=>:build_options) do
+      desc "Build options. The definition of build options is provider
+        specific. In general, these are certain properties which alter contents
+        of a package being installed. An example of build options are the
+        FreeBSD ports options.
+
+        The build_options attribute is a property. This means that the options
+        can be enforced during package installation and verified/retrieved
+        for packages that are already installed.
+
+        For example, ports provider on FreeBSD implements the build options as
+        port options (the ones you normally set with make config). There is a
+        simple usage example for this particular type of build options (that is
+        for ports provider):
+
+            package { 'apache22':
+              build_options => { 'SUEXEC' => false }
+            }
+
+        The above manifest ensures, that apache22 is compiled without SUEXEC
+        module.
+
+        Despite the build_options are provider specific, the typical behavior,
+        when you change package's build_options in  your manifest, is to
+        rebuild/reinstall package with new options.
+        "
+
+      validate do |value|
+        if provider.respond_to?(:build_options_validate)
+          provider.build_options_validate(value)
+        else
+          super
+        end
+      end
+
+      munge do |value|
+        if provider.respond_to?(:build_options_munge)
+          provider.build_options_munge(value)
+        else
+          super
+        end
+      end
+
+      def insync?(is)
+        provider.build_options_insync?(should, is)
+      end
+
+      def should_to_s(newvalue)
+        if provider.respond_to?(:build_options_should_to_s)
+          provider.build_options_should_to_s(should, newvalue)
+        else
+          super
+        end
+      end
+
+      def is_to_s(currentvalue)
+        if provider.respond_to?(:build_options_is_to_s)
+          provider.build_options_is_to_s(should, currentvalue)
+        else
+          super
+        end
+      end
+
+      def change_to_s(currentvalue, newvalue)
+        if provider.respond_to?(:build_options_change_to_s)
+          provider.build_options_change_to_s(currentvalue, newvalue)
+        else
+          super
+        end
+      end
+    end
+
     newparam(:source) do
-      desc "Where to find the actual package.  This must be a local file
+      desc "Where to find the actual package. This must be a local file
         (or on a network file system) or a URL that your specific
         packaging type understands; Puppet will not retrieve files for you,
         although you can manage packages as `file` resources."

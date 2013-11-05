@@ -26,6 +26,10 @@ describe Puppet::Type.type(:package) do
     Puppet::Type.type(:package).provider_feature(:versionable).should_not be_nil
   end
 
+  it "should have a :build_options feature that requires :build_options_insync?, :build_options and :build_options=" do
+    Puppet::Type.type(:package).provider_feature(:build_options).methods.should == [:build_options_insync?, :build_options, :build_options=]
+  end
+
   it "should default to being installed" do
     pkg = Puppet::Type.type(:package).new(:name => "yay", :provider => :apt)
     pkg.should(:ensure).should == :present
@@ -40,6 +44,10 @@ describe Puppet::Type.type(:package) do
 
     it "should have an ensure property" do
       Puppet::Type.type(:package).attrtype(:ensure).should == :property
+    end
+
+    it "should have a build_options property" do
+      Puppet::Type.type(:package).attrtype(:build_options).should == :property
     end
   end
 
