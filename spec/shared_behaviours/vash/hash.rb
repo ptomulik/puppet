@@ -15,13 +15,11 @@ def enumerator_class
   end
 end
 
-def key_error_class
+def key_error_from_fetch
   begin
     {}.fetch('x')
-  rescue KeyError
-    KeyError
-  rescue IndexError
-    IndexError
+  rescue => e
+    e.class
   end
 end
 
@@ -543,7 +541,7 @@ shared_examples 'Vash::Hash' do |_params|
       :raises => [ArgumentError]
     },
     :fetch    => {
-      :raises => [key_error_class]
+      :raises => [key_error_from_fetch]
     },
   }
 
