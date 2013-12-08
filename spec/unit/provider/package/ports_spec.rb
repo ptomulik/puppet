@@ -289,7 +289,7 @@ describe provider_class do
         described_class.stubs(:search_packages).once.with(nil).multiple_yields(*records)
         described_class.stubs(:warning).once.with(
           "Could not find port for installed package 'ruby-1.8.7.123,1'." +
-          "Build options will not work for this package."
+          "Build options and upgrades will not work for this package."
         )
         expect { described_class.instances }.to_not raise_error
       end
@@ -617,16 +617,37 @@ describe provider_class do
   end
 
   describe "when reinstalling" do
-    it "should call do_potupgrade portorigin, reinstall_options, options" do
-      subject.stubs(:portorigin).returns 'port/origin'
-      subject.stubs(:reinstall_options).returns %w{-r -o}
-      subject.stubs(:do_portupgrade).once.with('port/origin', %w{-r -o}, {})
-      expect { subject.reinstall({}) }.to_not raise_error
+    context "a package that has port origin" do
+      before(:each) do
+        subject.instance_variable_set(:@portorigin, 'port/origin')
+        subject.stubs(:reinstall_options).returns %w{-r -o}
+        subject.stubs(:resource).returns({:build_options=>{}})
+        subject.stubs(:name).returns('bar/foo')
+      end
+      it "should call do_potupgrade(portorigin, reinstall_options, options)" do
+        subject.stubs(:do_portupgrade).once.with('port/origin', %w{-r -o}, {})
+        expect { subject.reinstall({}) }.to_not raise_error
+      end
+    end
+    context "a package that has no port origin" do
+      before(:each) do
+        subject.stubs(:reinstall_options).returns %w{-r -o}
+        subject.stubs(:resource).returns({:build_options=>{}})
+        subject.stubs(:name).returns('foo-1.2.3')
+      end
+      it "should not call do_potupgrade" do
+        subject.stubs(:do_portupgrade).never
+        expect { subject.reinstall({}) }.to_not raise_error
+      end
+      it "should issue a warning" do
+        subject.stubs(:warning).once.with("Could not reinstall package 'foo-1.2.3' which has no port origin.")
+        expect { subject.reinstall({}) }.to_not raise_error
+      end
     end
   end
 
   describe "when upgrading" do
-    context "not an installed package" do
+    context "a package that is not currently installed" do
       it "should call install" do
         subject.stubs(:properties).returns({:ensure => :absent})
         subject.stubs(:do_portupgrade).never
@@ -638,10 +659,33 @@ describe provider_class do
       it "should call do_potupgrade portorigin, reinstall_options, options" do
         subject.stubs(:properties).returns({:ensure => :present})
         subject.stubs(:resource).returns({:build_options=>{}})
-        subject.stubs(:portorigin).returns('bar/foo')
+        subject.instance_variable_set(:@portorigin,'bar/foo')
+        subject.stubs(:name).returns('bar/foo')
         subject.stubs(:upgrade_options).returns(%w{-R -M BATCH=yes})
         subject.stubs(:do_portupgrade).once.with('bar/foo', %w{-R -M BATCH=yes},{})
         subject.stubs(:install).never
+        expect { subject.update }.to_not raise_error
+      end
+    end
+    context "an installed package that has no port"  do
+      before(:each) do
+        subject.stubs(:properties).returns({:ensure => :present, :name=>'foo'})
+        subject.stubs(:name).returns('foo-1.2.3')
+        subject.stubs(:resource).returns({:build_options=>{}})
+        subject.stubs(:upgrade_options).returns(%w{-R -M BATCH=yes})
+        subject.stubs(:do_portupgrade)
+        subject.stubs(:install)
+      end
+      it "should never call do_portupgrade" do
+        subject.stubs(:do_portupgrade).never
+        expect { subject.update }.to_not raise_error
+      end
+      it "should never call install" do
+        subject.stubs(:install).never
+        expect { subject.update }.to_not raise_error
+      end
+      it "should issue a warning" do
+        subject.stubs(:warning).once.with("Could not upgrade package 'foo-1.2.3' which has no port origin.")
         expect { subject.update }.to_not raise_error
       end
     end
@@ -662,10 +706,10 @@ describe provider_class do
       ['1.2.3', '=', 'up-to-date-with-port', '1.2.3', nil],
       ['1.2.3', '>', 'up-to-date-with-port', '1.2.3', nil],
       ['1.2.3', '<', 'needs updating (port has 2.4.5)', '2.4.5', nil],
-      ['1.2.3', '?', '', :latest, "The installed package foo-1.2.3 does not appear in the ports database nor does its port directory exist."],
-      ['1.2.3', '!', '', :latest, "The installed package foo-1.2.3 does not appear in the ports database, the port directory actually exists, but the latest version number cannot be obtained."],
-      ['1.2.3', '#', '', :latest, "The installed package foo-1.2.3 does not have an origin recorded."],
-      ['1.2.3', '&', '', :latest, "Invalid status flag '&' for package foo-1.2.3 (returned by portversion command)."],
+      ['1.2.3', '?', '', :latest, "The installed package 'foo-1.2.3' does not appear in the ports database nor does its port directory exist."],
+      ['1.2.3', '!', '', :latest, "The installed package 'foo-1.2.3' does not appear in the ports database, the port directory actually exists, but the latest version number cannot be obtained."],
+      ['1.2.3', '#', '', :latest, "The installed package 'foo-1.2.3' does not have an origin recorded."],
+      ['1.2.3', '&', '', :latest, "Invalid status flag #{'&'.inspect} for package 'foo-1.2.3' (returned by portversion command)."],
     ].each do |oldver,status,info,result,warn|
       context "{:ensure => #{oldver.inspect}, :portstatus => #{status.inspect}, :portinfo => #{info.inspect}" do
         let(:oldver) { oldver }
@@ -688,7 +732,7 @@ describe provider_class do
           subject.stubs(:portstatus).returns('<')
           subject.stubs(:portinfo).returns('xyz')
           subject.stubs(:properties).returns({:ensure => '1.2.3'})
-          expect { subject.latest }.to raise_error Puppet::Error, "Could not match version info 'xyz'"
+          expect { subject.latest }.to raise_error Puppet::Error, 'Could not match version info "xyz".'
         end
       end
     end

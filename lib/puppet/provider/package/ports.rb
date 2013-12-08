@@ -17,8 +17,8 @@ Puppet::Type.type(:package).provide :ports, :parent => :freebsd, :source => :fre
 
   `build_options` shall be a hash with port's option names as keys (all
   uppercase) and boolean values. This parameter defines options that you would
-  normally set with make config command (the blue ncurses interface). Here is an
-  example:
+  normally set with make config command (the blue ncurses interface). Here is
+  an example:
 
       package { 'www/apache22':
         ensure => present,
@@ -60,33 +60,34 @@ Puppet::Type.type(:package).provide :ports, :parent => :freebsd, :source => :fre
     # find installed packages
     search_packages(names) do |record|
       records[record[:pkgname]] ||= Array.new
-      if record[:portorigin] and ['<','=','>'].include?(record[:portstatus])
-        records[record[:pkgname]] << record
-      end
+      records[record[:pkgname]] << record
     end
     # create provider instances
     packages = []
     records.each do |pkgname, recs|
-      if (len = recs.length) > 0
         rec = recs.last
-        if len > 1
+        if (len = recs.length) > 1
           # in theory this should never happen, but it's better to know
           warning "Found #{len} installed ports named '#{pkgname}': " +
             "#{recs.map{|r| "'#{r[:portorigin]}'"}.join(', ')}. " +
             "Only '#{rec[:portorigin]}' will be processed."
         end
+        unless rec[:portorigin] and ['<','=','>'].include?(rec[:portstatus])
+          rec.delete(:portorigin) if rec[:portorigin]
+          warning "Could not find port for installed package '#{pkgname}'." +
+                  "Build options and upgrades will not work for this package."
+        end
+        # if portorigin is unavailable, use pkgname to identify the package,
+        # this allows to at least uninstall packages that are currently
+        # installed but their ports were removed from ports tree
         package = new({
-          :name => rec[:portorigin],
+          :name => rec[:portorigin] || rec[:pkgname],
           :ensure => rec[:pkgversion],
           :build_options => rec[:options],
           :provider => self.name
         })
         package.assign_port_attributes(rec)
         packages << package
-      else
-        warning "Could not find port for installed package '#{pkgname}'." +
-                 "Build options will not work for this package."
-      end
     end
     packages
   end
@@ -330,14 +331,18 @@ Puppet::Type.type(:package).provide :ports, :parent => :freebsd, :source => :fre
 
   # install new package (only if it's not installed).
   def install
+    # we prefetched also not installed ports so @portorigin may be present
     name = @portorigin || resource[:name]
-    # we prefetch also not installed ports so `portorigin` should be available
     do_portupgrade name, install_options, resource[:build_options]
   end
 
   # reinstall already installed package with new options.
   def reinstall(options)
-    do_portupgrade portorigin, reinstall_options, options
+    if @portorigin
+      do_portupgrade portorigin, reinstall_options, options
+    else
+      warning "Could not reinstall package '#{name}' which has no port origin."
+    end
   end
 
   # upgrade already installed package.
@@ -345,7 +350,11 @@ Puppet::Type.type(:package).provide :ports, :parent => :freebsd, :source => :fre
     if properties[:ensure] == :absent
       install
     else
-      do_portupgrade portorigin, upgrade_options, resource[:build_options]
+      if @portorigin
+        do_portupgrade portorigin, upgrade_options, resource[:build_options]
+      else
+        warning "Could not upgrade package '#{name}' which has no port origin."
+      end
     end
   end
 
@@ -370,20 +379,20 @@ Puppet::Type.type(:package).provide :ports, :parent => :freebsd, :source => :fre
         debug "Newer version in #{source}"
         result = newversion
       else
-        raise Puppet::Error, "Could not match version info '#{portinfo}'"
+        raise Puppet::Error, "Could not match version info #{portinfo.inspect}."
       end
     when '?'
-      warning "The installed package #{pkgname} does not appear in the " +
+      warning "The installed package '#{pkgname}' does not appear in the " +
         "ports database nor does its port directory exist."
     when '!'
-      warning "The installed package #{pkgname} does not appear in the " +
+      warning "The installed package '#{pkgname}' does not appear in the " +
         "ports database, the port directory actually exists, but the latest " +
         "version number cannot be obtained."
     when '#'
-      warning "The installed package #{pkgname} does not have an origin recorded."
+      warning "The installed package '#{pkgname}' does not have an origin recorded."
     else
-      warning "Invalid status flag '#{portstatus}' for package " +
-        "#{pkgname} (returned by portversion command)."
+      warning "Invalid status flag #{portstatus.inspect} for package " +
+        "'#{pkgname}' (returned by portversion command)."
     end
     result
   end
