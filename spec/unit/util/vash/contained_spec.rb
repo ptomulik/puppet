@@ -1,10 +1,10 @@
 require 'spec_helper'
-require 'puppet/util/vash/inherited'
-require 'shared_behaviours/vash/inherited'
+require 'puppet/util/vash/contained'
+require 'shared_behaviours/vash/contained'
 
-class Vash_Inherited < Hash
-  include Puppet::Util::Vash::Inherited
-  def self.to_s; 'Vash::Inherited'; end
+class Vash_Contained
+  include Puppet::Util::Vash::Contained
+  def self.to_s; 'Vash::Contained'; end
   # accept only valid identifiers as keys
   def vash_valid_key?(key)
     key.is_a?(String) and (key=~/^[a-zA-Z]\w*$/)
@@ -28,8 +28,8 @@ class Vash_Inherited < Hash
   end
 end
 
-describe Vash_Inherited do
-  it_behaves_like 'Vash::Inherited', {
+describe Vash_Contained do
+  it_behaves_like 'Vash::Contained', {
     :valid_keys     => ['one', 'net_price', 'GrossPrice'],
     :invalid_keys   => [:one, 1, '#$', '' ],
     :valid_items    => [ ['a',1], ['b','2'] ],
