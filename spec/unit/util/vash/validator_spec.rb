@@ -30,32 +30,41 @@ class Vash_Validator_Customized
   def vash_munge_pair(pair); pair.sort; end
 end
 
-describe Vash_Validator_Customized do
-  it_behaves_like "Vash::Validator", {
-    :valid_keys          => [  0,  -1,'-1', 0.2 ],
-    :invalid_keys        => [ 'a', {}, [1] ],
-    :valid_values        => [  0,  -1,'-1', 0.2 ],
-    :invalid_values      => [ 'a', {}, [1] ],
-    :valid_pairs         => [ [1,1], [2,4], [3,9] ],
-    :invalid_pairs       => [ [1,2], [2,1] ],
-    :valid_items         => [ [2,4], ['3','9'] ],
-    :invalid_items       => [
-                              [ ['a', 0 ], :key   ],
-                              [ ['a','A'], :key   ],
-                              [ [ 0, 'A'], :value ],
-                              [ [ 1,  2 ], :pair  ],
-                              [ ['1','2'], :pair  ],
-                            ],
-    :key_munge_samples   => ['1', 1.1, 2],
-    :value_munge_samples => ['1', 1.1, 2],
-    :pair_munge_samples  => [[1,2], [4,3]],
-    :methods             => {
-      :vash_key_name     => lambda {|*args| 'power argument'},
-      :vash_value_name   => lambda {|*args| 'power value'},
-      :vash_pair_name    => lambda {|*args| 'power tuple'},
-      :vash_munge_key    => lambda {|key| Integer(key)},
-      :vash_munge_value  => lambda {|val| Integer(val)},
-      :vash_munge_pair   => lambda {|pair| pair.sort}
+# VASH_UNCOMMENT_START
+# By default it's disabled in puppet distribution, as the number of tests
+# generated here plus other puppet tests is able to kill CI systems (this was
+# observed at least on travis-ci.org on ruby 1.8). 
+if ENV['PUPPET_TEST_VASH'] or ENV['PUPPET_TEST_ALL']
+# VASH_UNCOMMENT_END
+  describe Vash_Validator_Customized do
+    it_behaves_like "Vash::Validator", {
+      :valid_keys          => [  0,  -1,'-1', 0.2 ],
+      :invalid_keys        => [ 'a', {}, [1] ],
+      :valid_values        => [  0,  -1,'-1', 0.2 ],
+      :invalid_values      => [ 'a', {}, [1] ],
+      :valid_pairs         => [ [1,1], [2,4], [3,9] ],
+      :invalid_pairs       => [ [1,2], [2,1] ],
+      :valid_items         => [ [2,4], ['3','9'] ],
+      :invalid_items       => [
+                                [ ['a', 0 ], :key   ],
+                                [ ['a','A'], :key   ],
+                                [ [ 0, 'A'], :value ],
+                                [ [ 1,  2 ], :pair  ],
+                                [ ['1','2'], :pair  ],
+                              ],
+      :key_munge_samples   => ['1', 1.1, 2],
+      :value_munge_samples => ['1', 1.1, 2],
+      :pair_munge_samples  => [[1,2], [4,3]],
+      :methods             => {
+        :vash_key_name     => lambda {|*args| 'power argument'},
+        :vash_value_name   => lambda {|*args| 'power value'},
+        :vash_pair_name    => lambda {|*args| 'power tuple'},
+        :vash_munge_key    => lambda {|key| Integer(key)},
+        :vash_munge_value  => lambda {|val| Integer(val)},
+        :vash_munge_pair   => lambda {|pair| pair.sort}
+      }
     }
-  }
+  end
+# VASH_UNCOMMENT_START
 end
+# VASH_UNCOMMENT_END
