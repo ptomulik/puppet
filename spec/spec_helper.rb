@@ -100,7 +100,7 @@ RSpec.configure do |config|
     # Disabling garbage collection inside each test, and only running it at
     # the end of each block, gives us an ~ 15 percent speedup, and more on
     # some platforms *cough* windows *cough* that are a little slower.
-    GC.disable
+##    GC.disable
 
     # REVISIT: I think this conceals other bad tests, but I don't have time to
     # fully diagnose those right now.  When you read this, please come tell me
@@ -143,7 +143,7 @@ RSpec.configure do |config|
     # This will perform a GC between tests, but only if actually required.  We
     # experimented with forcing a GC run, and that was less efficient than
     # just letting it run all the time.
-    GC.enable
+ ##   GC.enable
   end
 
   config.after :suite do
